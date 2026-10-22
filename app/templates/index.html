@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Placement and Performance Predictor</title>
+<style>
+  @property --p { syntax: '<number>'; inherits: false; initial-value: 0; }
+  :root {
+    --ink:#1e1b4b; --muted:#64748b; --line:#ede9fe;
+    --violet:#7c3aed; --pink:#ec4899; --teal:#0d9488; --amber:#f59e0b; --sky:#0ea5e9; --green:#16a34a; --rose:#e11d48;
+    --card:#ffffff; --radius:20px;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body {
+    margin:0; color:var(--ink); min-height:100vh;
+    font-family:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif; line-height:1.5;
+    background:
+      radial-gradient(900px 500px at 8% -5%, #fbcfe8 0%, transparent 60%),
+      radial-gradient(800px 500px at 95% 0%, #bae6fd 0%, transparent 55%),
+      radial-gradient(900px 600px at 50% 105%, #fde68a 0%, transparent 55%),
+      #faf5ff;
+    background-attachment: fixed;
+  }
+  :focus-visible { outline:3px solid var(--violet); outline-offset:2px; }
+
+  header { position:sticky; top:0; z-index:20; background:rgba(255,255,255,.82); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  header::before { content:""; display:block; height:5px; background:linear-gradient(90deg,var(--violet),var(--pink),var(--amber),var(--teal),var(--sky)); }
+  .bar { max-width:1240px; margin:0 auto; padding:12px 20px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+  .brand h1 { margin:0; font-size:1.25rem; letter-spacing:-.01em; }
+  .brand p { margin:0; font-size:.8rem; color:var(--muted); }
+  nav { display:flex; gap:6px; flex-wrap:wrap; }
+  nav button { border:0; background:#f3e8ff; color:var(--violet); padding:9px 16px; border-radius:999px; font:inherit; font-weight:600; cursor:pointer; transition:background .2s, color .2s; }
+  nav button:hover { background:#e9d5ff; }
+  nav button.active { background:linear-gradient(120deg,var(--violet),#db2777); color:#fff; }
+
+  main { max-width:1240px; margin:22px auto 10px; padding:0 20px; }
+  .tab { display:none; }
+  .tab.active { display:block; }
+  .grid2 { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:20px; align-items:start; }
+  .grid-charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+  @media (max-width:900px){ .grid2, .grid-charts { grid-template-columns:1fr; } }
+
+  .card { background:var(--card); border-radius:var(--radius); padding:20px 22px; box-shadow:0 10px 34px rgba(124,58,237,.10); border-top:5px solid var(--ac,var(--violet)); }
+  .stack > .card + .card { margin-top:20px; }
+  .card h2 { margin:0 0 4px; font-size:1.05rem; }
+  .card .sub { margin:0 0 14px; font-size:.82rem; color:var(--muted); }
+  .c-violet{--ac:var(--violet)} .c-pink{--ac:var(--pink)} .c-teal{--ac:var(--teal)} .c-amber{--ac:var(--amber)} .c-sky{--ac:var(--sky)} .c-green{--ac:var(--green)} .c-rose{--ac:var(--rose)}
+
+  .section-title { margin:18px 0 6px; font-size:.95rem; color:var(--violet); font-weight:700; }
+  .section-title:first-of-type { margin-top:0; }
+  label { display:flex; justify-content:space-between; align-items:baseline; font-size:.8rem; color:var(--muted); margin:12px 0 4px; }
+  label output { font-weight:700; color:var(--ink); font-size:.9rem; }
+  select, input[type=number] { width:100%; padding:9px 10px; border-radius:12px; border:1.5px solid #ddd6fe; background:#faf5ff; color:var(--ink); font:inherit; }
+  input[type=range] { width:100%; accent-color:var(--violet); }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .check { display:flex; align-items:center; gap:10px; margin-top:16px; padding:10px 12px; background:#ecfeff; border-radius:12px; font-size:.85rem; color:var(--ink); cursor:pointer; }
+  .check input { width:18px; height:18px; accent-color:var(--teal); }
+  #midBox { margin-top:4px; padding:4px 12px 12px; background:#f0fdfa; border-radius:12px; }
+  #midBox[hidden] { display:none; }
+  .err { color:var(--rose); font-size:.85rem; margin-top:10px; min-height:1.2em; }
+
+  .gauge-wrap { display:flex; flex-wrap:wrap; align-items:center; gap:22px; }
+  .gauge { --c:var(--violet); width:190px; height:190px; border-radius:50%; flex:none; display:grid; place-items:center; transition:--p .7s ease;
+           background:conic-gradient(var(--c) calc(var(--p)*1%), #f1f5f9 0); }
+  .gauge > div { width:146px; height:146px; border-radius:50%; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:inset 0 2px 8px rgba(0,0,0,.06); }
+  .gauge b { font-size:2.4rem; letter-spacing:-.02em; line-height:1; }
+  .gauge small { color:var(--muted); font-size:.75rem; margin-top:4px; }
+  .verdict { flex:1; min-width:180px; }
+  .verdict .pill { display:inline-block; padding:6px 14px; border-radius:999px; font-weight:700; font-size:.9rem; background:#ede9fe; color:var(--violet); }
+  .band-high .pill { background:#dcfce7; color:#15803d; } .band-mid .pill { background:#fef3c7; color:#b45309; } .band-low .pill { background:#ffe4e6; color:#be123c; }
+  .verdict p { margin:10px 0 0; font-size:.85rem; color:var(--muted); }
+
+  .sim { display:grid; grid-template-columns:1fr auto; gap:6px 12px; align-items:center; padding:10px 0; border-bottom:1px dashed var(--line); }
+  .sim:last-child { border-bottom:0; }
+  .sim span { font-size:.88rem; }
+  .chip { font-weight:700; font-size:.85rem; padding:4px 10px; border-radius:999px; background:#dcfce7; color:#15803d; }
+  .chip.neg { background:#ffe4e6; color:#be123c; } .chip.flat { background:#f1f5f9; color:#475569; }
+  .sim .track { grid-column:1 / -1; height:8px; border-radius:99px; background:#f1f5f9; overflow:hidden; }
+  .sim .track i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--teal),var(--green)); transition:width .5s ease; }
+
+  .grade { display:flex; align-items:baseline; gap:8px; }
+  .grade b { font-size:2.8rem; letter-spacing:-.02em; color:var(--pink); line-height:1; }
+  .grade span { color:var(--muted); font-weight:600; }
+  .gbar { display:grid; grid-template-columns:repeat(20,1fr); gap:3px; margin:14px 0 8px; }
+  .gbar i { height:12px; border-radius:4px; background:#fce7f3; transition:background .3s; }
+  .gbar i.on { background:linear-gradient(180deg,#f472b6,#ec4899); }
+  .modeNote { font-size:.8rem; color:var(--muted); margin:0; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin-bottom:20px; }
+  .kpi { background:#fff; border-radius:var(--radius); padding:16px 18px; box-shadow:0 10px 34px rgba(124,58,237,.10); border-left:6px solid var(--ac); }
+  .kpi small { color:var(--muted); font-size:.78rem; }
+  .kpi b { display:block; font-size:1.55rem; letter-spacing:-.01em; margin-top:2px; }
+  .kpi em { font-style:normal; font-size:.75rem; color:var(--muted); }
+
+  .hb { display:grid; grid-template-columns:minmax(110px,190px) 1fr 54px; gap:10px; align-items:center; margin:7px 0; font-size:.82rem; }
+  .hb-l { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); }
+  .hb-t { height:12px; background:#f5f3ff; border-radius:99px; overflow:hidden; }
+  .hb-t i { display:block; height:100%; border-radius:99px; }
+  .hb b { text-align:right; font-weight:700; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; font-size:.78rem; color:var(--muted); margin-bottom:8px; }
+  .legend i { display:inline-block; width:11px; height:11px; border-radius:4px; margin-right:6px; vertical-align:-1px; }
+  .gr { display:grid; grid-template-columns:minmax(110px,170px) 1fr; gap:10px; margin:10px 0; font-size:.82rem; align-items:center; }
+  .gr-l { color:var(--ink); } .gr-l.best { font-weight:700; }
+  .gb { display:flex; align-items:center; gap:6px; height:12px; margin:2px 0; }
+  .gb i { display:block; height:100%; border-radius:99px; min-width:2px; }
+  .gb em { font-style:normal; font-size:.72rem; color:var(--muted); width:42px; flex:none; }
+  svg { width:100%; height:auto; display:block; }
+  svg .ax { font-size:10.5px; fill:#64748b; } svg .axl { font-size:11px; fill:#475569; font-weight:600; }
+  .cmwrap { display:grid; grid-template-columns:auto 1fr 1fr; gap:8px; align-items:stretch; max-width:440px; margin:6px auto 0; }
+  .cmh { font-size:.74rem; color:var(--muted); text-align:center; align-self:center; }
+  .cmv { font-size:.74rem; color:var(--muted); writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; }
+  .cm { border-radius:14px; padding:16px 8px; text-align:center; background:rgba(var(--rgb),var(--a)); }
+  .cm.g { --rgb:34,197,94; } .cm.b { --rgb:244,63,94; }
+  .cm b { display:block; font-size:1.8rem; } .cm small { font-size:.74rem; color:#334155; }
+  .note { margin:10px 0 0; font-size:.78rem; color:var(--muted); }
+  .empty { background:#fff; border-radius:var(--radius); padding:34px; text-align:center; box-shadow:0 10px 34px rgba(124,58,237,.10); color:var(--muted); }
+
+  .btn { border:0; padding:13px 22px; border-radius:14px; font:inherit; font-weight:700; color:#fff; cursor:pointer; background:linear-gradient(120deg,var(--teal),var(--sky)); box-shadow:0 8px 20px rgba(13,148,136,.28); transition:transform .15s, opacity .2s; }
+  .btn:hover { transform:translateY(-1px); } .btn:disabled { opacity:.55; cursor:wait; transform:none; }
+  .progress { height:14px; border-radius:99px; background:#e0f2fe; overflow:hidden; margin:16px 0 6px; }
+  .progress i { display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,var(--violet),var(--pink),var(--amber)); transition:width .6s ease; }
+  .status { font-size:.88rem; color:var(--muted); min-height:1.3em; }
+  .log { margin-top:14px; background:#1e1b4b; color:#c7d2fe; border-radius:16px; padding:16px; height:300px; overflow:auto; font:12.5px/1.55 Consolas,"Cascadia Mono",monospace; white-space:pre-wrap; }
+  .steps { margin:0; padding-left:20px; font-size:.88rem; color:#334155; } .steps li { margin:4px 0; }
+  footer { max-width:1240px; margin:22px auto 30px; padding:0 20px; text-align:center; font-size:.78rem; color:var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; scroll-behavior:auto !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <h1>Student Placement and Performance Predictor</h1>
+      <p>Machine learning early-warning tool for counselling</p>
+    </div>
+    <nav id="nav">
+      <button class="active" data-tab="predict">Predict</button>
+      <button data-tab="perf">Model performance</button>
+      <button data-tab="insights">Data insights</button>
+      <button data-tab="train">Training</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ============ PREDICT ============ -->
+<section class="tab active" id="tab-predict">
+  <div class="grid2">
+    <form class="card c-violet" id="form" autocomplete="off">
+      <h2>Student profile</h2>
+      <p class="sub">Move any slider. The prediction updates instantly.</p>
+
+      <div class="section-title">Placement details</div>
+      <div class="row">
+        <div><label>Gender</label><select name="gender"><option value="M">Male</option><option value="F">Female</option></select></div>
+        <div><label>Specialisation</label><select name="specialisation"><option>Mkt&amp;Fin</option><option>Mkt&amp;HR</option></select></div>
+      </div>
+      <label>SSC % (10th) <output>70</output></label><input type="range" name="ssc_p" min="40" max="95" step="0.5" value="70">
+      <label>HSC % (12th) <output>70</output></label><input type="range" name="hsc_p" min="40" max="95" step="0.5" value="70">
+      <label>Degree % <output>68</output></label><input type="range" name="degree_p" min="50" max="95" step="0.5" value="68">
+      <label>MBA % <output>62</output></label><input type="range" name="mba_p" min="50" max="80" step="0.5" value="62">
+      <label>Employability test % <output>65</output></label><input type="range" name="etest_p" min="50" max="100" step="0.5" value="65">
+      <div class="row">
+        <div><label>Work experience</label><select name="workex"><option>No</option><option>Yes</option></select></div>
+        <div><label>Degree type</label><select name="degree_t"><option>Comm&amp;Mgmt</option><option>Sci&amp;Tech</option><option>Others</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>SSC board</label><select name="ssc_b"><option>Central</option><option>Others</option></select></div>
+        <div><label>HSC board</label><select name="hsc_b"><option>Central</option><option>Others</option></select></div>
+      </div>
+      <div><label>HSC stream</label><select name="hsc_s"><option>Commerce</option><option>Science</option><option>Arts</option></select></div>
+
+      <div class="section-title" style="margin-top:24px">Academic habits (for the grade estimate)</div>
+      <div class="row">
+        <div><label>Sex</label><select name="sex"><option value="M">Male</option><option value="F">Female</option></select></div>
+        <div><label>Age</label><input name="age" type="number" min="15" max="22" value="17"></div>
+      </div>
+      <label>Study time, 1 (low) to 4 (high) <output>2</output></label><input type="range" name="studytime" min="1" max="4" step="1" value="2">
+      <label>Past failures <output>0</output></label><input type="range" name="failures" min="0" max="3" step="1" value="0">
+      <label>Absences <output>4</output></label><input type="range" name="absences" min="0" max="60" step="1" value="4">
+      <label>Going out, 1 to 5 <output>3</output></label><input type="range" name="goout" min="1" max="5" step="1" value="3">
+      <label>Health, 1 to 5 <output>3</output></label><input type="range" name="health" min="1" max="5" step="1" value="3">
+      <div class="row">
+        <div><label>Mother's education (0 to 4)</label><input name="Medu" type="number" min="0" max="4" value="2"></div>
+        <div><label>Father's education (0 to 4)</label><input name="Fedu" type="number" min="0" max="4" value="2"></div>
+      </div>
+      <div class="row">
+        <div><label>Wants higher education</label><select name="higher"><option value="yes">Yes</option><option value="no">No</option></select></div>
+        <div><label>Internet at home</label><select name="internet"><option value="yes">Yes</option><option value="no">No</option></select></div>
+      </div>
+      <div><label>Extra school support</label><select name="schoolsup"><option value="no">No</option><option value="yes">Yes</option></select></div>
+
+      <label class="check"><input type="checkbox" id="useMid"> I have period 1 and 2 grades. Use them for a much more accurate estimate.</label>
+      <div id="midBox" hidden>
+        <label>Period 1 grade (G1) <output>10</output></label><input type="range" name="g1" min="0" max="20" step="1" value="10">
+        <label>Period 2 grade (G2) <output>10</output></label><input type="range" name="g2" min="0" max="20" step="1" value="10">
+      </div>
+      <div class="err" id="err"></div>
+    </form>
+
+    <div class="stack">
+      <div class="card c-pink">
+        <h2>Placement chance</h2>
+        <p class="sub">Estimated by the best placement model from your training results.</p>
+        <div class="gauge-wrap">
+          <div class="gauge" id="gauge"><div><b id="prob">0%</b><small>chance</small></div></div>
+          <div class="verdict" id="verdict"><span class="pill" id="label">Calculating</span>
+            <p>This is a statistical estimate from past students. It supports counselling and is not a promise.</p></div>
+        </div>
+      </div>
+      <div class="card c-teal">
+        <h2>What would help most</h2>
+        <p class="sub">The model is re-run with each change, so these gains are real model outputs.</p>
+        <div id="sims"></div>
+      </div>
+      <div class="card c-amber">
+        <h2>Estimated final grade</h2>
+        <div class="grade"><b id="score">0</b><span>out of 20</span></div>
+        <div class="gbar" id="gbar"></div>
+        <p class="modeNote" id="modeNote"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PERFORMANCE ============ -->
+<section class="tab" id="tab-perf"><div id="perfRoot"></div></section>
+
+<!-- ============ INSIGHTS ============ -->
+<section class="tab" id="tab-insights"><div id="insRoot"></div></section>
+
+<!-- ============ TRAINING ============ -->
+<section class="tab" id="tab-train">
+  <div class="grid2">
+    <div class="card c-teal">
+      <h2>Train the models</h2>
+      <p class="sub">Trains on your own data on this laptop. No internet and no API.</p>
+      <ol class="steps">
+        <li>Eight placement models and five marks models are trained and compared.</li>
+        <li>Each score comes from repeated 5-fold cross-validation, so it is not luck from one split.</li>
+        <li>Random Forest, Gradient Boosting and XGBoost are tuned inside each fold (nested validation).</li>
+        <li>The best models are saved and the app switches to them automatically.</li>
+      </ol>
+      <p style="margin:18px 0 0"><button class="btn" id="trainBtn" type="button">Train models</button></p>
+      <div class="progress"><i id="progBar"></i></div>
+      <div class="status" id="trainStatus">Ready. Training takes about one to three minutes.</div>
+    </div>
+    <div class="card c-violet">
+      <h2>Live training log</h2>
+      <p class="sub">Every step the training script performs appears here.</p>
+      <div class="log" id="log">Press "Train models" to start.</div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>For counselling support only. Predictions must never be used to reject or label students.</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const C = {violet:"#7c3aed", pink:"#ec4899", teal:"#0d9488", amber:"#f59e0b", sky:"#0ea5e9", green:"#16a34a", rose:"#e11d48"};
+const pct = v => (v*100).toFixed(1) + "%";
+const f3 = v => Number(v).toFixed(3);
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("#nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#nav button").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
+  window.scrollTo({top:0});
+}));
+
+/* ---------- chart helpers ---------- */
+function hbar(id, items, o = {}) {
+  const max = o.max ?? Math.max(...items.map(i => i.value), 1e-9);
+  const cols = Array.isArray(o.color) ? o.color : [o.color || C.violet];
+  const fmt = o.fmt || f3;
+  $(id).innerHTML = items.map((it, i) =>
+    `<div class="hb"><span class="hb-l" title="${esc(it.label)}">${esc(it.label)}</span>
+     <div class="hb-t"><i style="width:${Math.max(0, it.value)/max*100}%;background:${cols[i % cols.length]}"></i></div>
+     <b>${fmt(it.value)}</b></div>`).join("");
+}
+function grouped(id, rows, series, o = {}) {
+  const max = o.max ?? 1, fmt = o.fmt || f3;
+  const legend = `<div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>`;
+  const body = rows.map(r => `<div class="gr"><span class="gr-l ${r.best ? "best" : ""}">${esc(r.label)}${r.best ? " (best)" : ""}</span><div>` +
+    r.vals.map((v, i) => `<div class="gb"><i style="width:${Math.max(0, v)/max*100}%;background:${series[i].color}"></i><em>${fmt(v)}</em></div>`).join("") +
+    `</div></div>`).join("");
+  $(id).innerHTML = legend + body;
+}
+function lineChart(id, series, o = {}) {
+  const W = 520, H = 290, L = 50, R = 16, T = 14, B = 46;
+  const xs = series.flatMap(s => s.pts.map(p => p[0])), ys = series.flatMap(s => s.pts.map(p => p[1]));
+  const xmin = o.xmin ?? Math.min(...xs), xmax = o.xmax ?? Math.max(...xs);
+  let ymin = o.ymin ?? Math.min(...ys), ymax = o.ymax ?? Math.max(...ys);
+  if (ymin === ymax) { ymin -= 1; ymax += 1; }
+  const X = v => L + (v - xmin) / ((xmax - xmin) || 1) * (W - L - R);
+  const Y = v => H - B - (v - ymin) / (ymax - ymin) * (H - T - B);
+  const ticks = (a, b, n) => Array.from({length:n + 1}, (_, i) => a + (b - a) * i / n);
+  let g = "";
+  ticks(ymin, ymax, 4).forEach(t => { g += `<line x1="${L}" x2="${W-R}" y1="${Y(t)}" y2="${Y(t)}" stroke="#ede9fe"/><text x="${L-8}" y="${Y(t)+4}" text-anchor="end" class="ax">${t.toFixed(o.yd ?? 2)}</text>`; });
+  ticks(xmin, xmax, 4).forEach(t => { g += `<text x="${X(t)}" y="${H-B+18}" text-anchor="middle" class="ax">${t.toFixed(o.xd ?? 0)}</text>`; });
+  g += `<line x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}" stroke="#c4b5fd"/><line x1="${L}" x2="${L}" y1="${T}" y2="${H-B}" stroke="#c4b5fd"/>`;
+  if (o.diag) g += `<line x1="${X(xmin)}" y1="${Y(ymin)}" x2="${X(xmax)}" y2="${Y(ymax)}" stroke="#cbd5e1" stroke-dasharray="5 4"/>`;
+  series.forEach(s => {
+    const d = s.pts.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + " " + Y(p[1]).toFixed(1)).join(" ");
+    if (s.fill) g += `<path d="${d} L${X(s.pts[s.pts.length-1][0])} ${H-B} L${X(s.pts[0][0])} ${H-B} Z" fill="${s.color}" opacity=".13"/>`;
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if (s.dots) s.pts.forEach(p => { g += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3.6" fill="#fff" stroke="${s.color}" stroke-width="2"/>`; });
+  });
+  g += `<text x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle" class="axl">${o.xl || ""}</text>`;
+  g += `<text transform="translate(13 ${(T+H-B)/2}) rotate(-90)" text-anchor="middle" class="axl">${o.yl || ""}</text>`;
+  const legend = `<div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>`;
+  $(id).innerHTML = legend + `<svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+}
+function scatter(id, pts, color) {
+  const W = 520, H = 290, L = 50, R = 16, T = 14, B = 46, max = 20;
+  const X = v => L + v / max * (W - L - R), Y = v => H - B - v / max * (H - T - B);
+  let g = "";
+  [0, 5, 10, 15, 20].forEach(t => {
+    g += `<line x1="${L}" x2="${W-R}" y1="${Y(t)}" y2="${Y(t)}" stroke="#ede9fe"/><text x="${L-8}" y="${Y(t)+4}" text-anchor="end" class="ax">${t}</text>`;
+    g += `<text x="${X(t)}" y="${H-B+18}" text-anchor="middle" class="ax">${t}</text>`;
+  });
+  g += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(20)}" y2="${Y(20)}" stroke="#94a3b8" stroke-dasharray="5 4"/>`;
+  pts.forEach((p, i) => { const j = ((i * 37) % 11 - 5) * 0.04; g += `<circle cx="${X(p[0] + j)}" cy="${Y(p[1])}" r="4" fill="${color}" opacity=".5"/>`; });
+  g += `<text x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle" class="axl">Actual final grade</text>`;
+  g += `<text transform="translate(13 ${(T+H-B)/2}) rotate(-90)" text-anchor="middle" class="axl">Predicted final grade</text>`;
+  $(id).innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+}
+function confusion(id, cm) {
+  const [[tn, fp], [fn, tp]] = cm, mx = Math.max(tn, fp, fn, tp, 1);
+  const cell = (v, good, lab) => `<div class="cm ${good ? "g" : "b"}" style="--a:${(0.22 + 0.7 * v / mx).toFixed(2)}"><b>${v}</b><small>${lab}</small></div>`;
+  $(id).innerHTML = `<div class="cmwrap"><span></span><span class="cmh">Predicted: not placed</span><span class="cmh">Predicted: placed</span>
+    <span class="cmv">Actually not placed</span>${cell(tn, true, "correct")}${cell(fp, false, "false alarm")}
+    <span class="cmv">Actually placed</span>${cell(fn, false, "missed")}${cell(tp, true, "correct")}</div>`;
+}
+
+/* ---------- performance and insights tabs ---------- */
+const EMPTY = `<div class="empty"><h2 style="margin-top:0">No training results yet</h2>Open the <b>Training</b> tab and press <b>Train models</b>. Charts appear here when it finishes.</div>`;
+function card(color, title, sub, id, note) {
+  return `<div class="card c-${color}"><h2>${title}</h2><p class="sub">${sub}</p><div id="${id}"></div>${note ? `<p class="note">${note}</p>` : ""}</div>`;
+}
+function kpi(color, label, value, extra) {
+  return `<div class="kpi c-${color}"><small>${label}</small><b>${value}</b><em>${extra || ""}</em></div>`;
+}
+function renderMetrics(m) {
+  if (!m.placement) { $("#perfRoot").innerHTML = EMPTY; $("#insRoot").innerHTML = EMPTY; return; }
+  const P = m.placement, E = m.performance_early, D = m.performance_mid;
+  const bestRow = P.table.find(r => r.model === P.best);
+  const eBest = E.table.find(r => r.model === E.best), dBest = D.table.find(r => r.model === D.best);
+
+  $("#perfRoot").innerHTML =
+    `<div class="kpis">
+      ${kpi("violet", "Best placement model", esc(P.best), `chosen from ${P.table.length} models`)}
+      ${kpi("pink", "Placement accuracy", pct(bestRow.accuracy), `cross-validated, spread +/- ${pct(bestRow.accuracy_std)}`)}
+      ${kpi("teal", "ROC-AUC", f3(bestRow.roc_auc), "1.0 is perfect, 0.5 is guessing")}
+      ${kpi("amber", "Grade error, early model", "+/- " + eBest.mae.toFixed(2) + " marks", `R2 ${f3(eBest.r2)}, habits only`)}
+      ${kpi("sky", "Grade error, mid-term model", "+/- " + dBest.mae.toFixed(2) + " marks", `R2 ${f3(dBest.r2)}, uses G1 and G2`)}
+    </div>
+    <div class="grid-charts">
+      ${card("violet", "Placement models compared", `${P.n} students. Mean of repeated 5-fold cross-validation.`, "ch1", "Higher is better. The model with the best ROC-AUC is saved and used by the app.")}
+      ${card("pink", "ROC curve of the best model", "How well it separates placed from not placed students.", "ch2", `Area under the curve = ${f3(P.roc.auc)}. The dashed line is random guessing.`)}
+      ${card("teal", "Confusion matrix", "Every student predicted while hidden from the model.", "ch3", "Green cells are correct predictions. Red cells are mistakes.")}
+      ${card("amber", "What drives placement", "How much the model's score drops when a feature is scrambled.", "ch4", "This shows what the model relies on. It does not prove cause and effect.")}
+      ${card("sky", "Learning curve", "Does the model improve with more students?", "ch5", "If validation is still rising, more data would help. A big gap means overfitting.")}
+      ${card("green", "XGBoost training loss", "Error (log loss) after each boosting round.", "ch6", "Training loss keeps falling. When validation loss stops falling or rises, extra rounds only memorise the training data (overfitting).")}
+      ${card("rose", "Marks models: early vs mid-term", "R2 score (higher is better) for each algorithm.", "ch7", "Early uses habits only. Mid-term also uses G1 and G2, which is why it is far more accurate.")}
+      ${card("violet", "Mid-term grade model: predicted vs actual", "Dots close to the dashed line are good predictions.", "ch8", "")}
+      ${card("pink", "Early model: predicted vs actual", "Habits and background only, so the spread is wider.", "ch9", "")}
+      ${card("amber", "What drives the grade (early model)", "Permutation importance.", "ch10", "")}
+    </div>
+    <p class="note" style="text-align:center">Trained on ${esc(m.generated)}. Placement uses ${P.n} students, grades use ${E.n} students.</p>`;
+
+  grouped("#ch1", P.table.map(r => ({label:r.model, vals:[r.accuracy, r.f1, r.roc_auc], best:r.model === P.best})),
+    [{name:"Accuracy", color:C.violet}, {name:"F1 score", color:C.pink}, {name:"ROC-AUC", color:C.teal}]);
+  lineChart("#ch2", [{name:"Best model", color:C.pink, fill:true, pts:P.roc.fpr.map((x, i) => [x, P.roc.tpr[i]])}],
+    {xmin:0, xmax:1, ymin:0, ymax:1, diag:true, xd:1, yd:1, xl:"False positive rate", yl:"True positive rate"});
+  confusion("#ch3", P.confusion);
+  hbar("#ch4", P.importance.map(i => ({label:i.name, value:Math.max(0, i.value)})), {color:[C.amber, C.pink, C.violet, C.teal, C.sky]});
+  lineChart("#ch5", [
+    {name:"Training accuracy", color:C.sky, dots:true, pts:P.learning_curve.sizes.map((s, i) => [s, P.learning_curve.train[i]])},
+    {name:"Validation accuracy", color:C.pink, dots:true, pts:P.learning_curve.sizes.map((s, i) => [s, P.learning_curve.val[i]])}],
+    {yd:2, xl:"Number of training students", yl:"Accuracy"});
+  lineChart("#ch6", [
+    {name:"Training loss", color:C.green, pts:P.xgb_curve.rounds.map((s, i) => [s, P.xgb_curve.train[i]])},
+    {name:"Validation loss", color:C.rose, pts:P.xgb_curve.rounds.map((s, i) => [s, P.xgb_curve.val[i]])}],
+    {yd:2, xl:"Boosting round", yl:"Log loss"});
+  const names = [...new Set([...E.table.map(r => r.model), ...D.table.map(r => r.model)])];
+  const r2 = (blk, n) => (blk.table.find(r => r.model === n) || {r2:0}).r2;
+  grouped("#ch7", names.map(n => ({label:n, vals:[r2(E, n), r2(D, n)]})),
+    [{name:"Early (habits only)", color:C.amber}, {name:"Mid-term (with G1, G2)", color:C.rose}]);
+  scatter("#ch8", D.scatter, C.violet);
+  scatter("#ch9", E.scatter, C.pink);
+  hbar("#ch10", E.importance.map(i => ({label:i.name, value:Math.max(0, i.value)})), {color:[C.pink, C.violet, C.teal, C.amber, C.sky]});
+
+  const X = m.eda;
+  $("#insRoot").innerHTML = `<div class="grid-charts">
+    ${card("teal", "Placement rate by group", "Share of students in each group who were placed.", "in1", "")}
+    ${card("pink", "Average scores: placed vs not placed", "Average percentage in each exam.", "in2", "Placed students scored higher on average in every exam where the bars differ.")}
+    </div>`;
+  hbar("#in1", X.placement_rate.map(r => ({label:r.label, value:r.value})), {max:1, fmt:pct, color:[C.teal, C.sky, C.violet, C.pink]});
+  grouped("#in2", X.avg_by_status.map(r => ({label:r.feature, vals:[r.placed, r.not_placed]})),
+    [{name:"Placed", color:C.green}, {name:"Not placed", color:C.rose}], {max:100, fmt:v => v.toFixed(1)});
+}
+async function loadMetrics() {
+  try { renderMetrics(await (await fetch("/metrics")).json()); }
+  catch (e) { $("#perfRoot").innerHTML = EMPTY; $("#insRoot").innerHTML = EMPTY; }
+}
+
+/* ---------- live prediction ---------- */
+const form = $("#form");
+function wireSliders() {
+  form.querySelectorAll("input[type=range]").forEach(r => {
+    const out = r.previousElementSibling.querySelector("output");
+    const sync = () => { out.textContent = r.value; };
+    r.addEventListener("input", sync); sync();
+  });
+}
+function collect() {
+  const d = {};
+  new FormData(form).forEach((v, k) => { d[k] = (v !== "" && !isNaN(v)) ? Number(v) : v; });
+  if (!$("#useMid").checked) { delete d.g1; delete d.g2; }
+  return d;
+}
+let timer = null, seq = 0;
+function schedule() { clearTimeout(timer); timer = setTimeout(runPredict, 180); }
+async function runPredict() {
+  const mine = ++seq;
+  try {
+    const res = await fetch("/predict", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(collect())});
+    const out = await res.json();
+    if (mine !== seq) return;
+    if (out.error) { $("#err").textContent = "Error: " + out.error; return; }
+    $("#err").textContent = "";
+    renderPrediction(out);
+  } catch (e) { $("#err").textContent = "Cannot reach the server. Is app.py still running?"; }
+}
+function renderPrediction(out) {
+  const p = out.placement, g = $("#gauge");
+  const col = p.band === "high" ? C.green : p.band === "mid" ? C.amber : C.rose;
+  g.style.setProperty("--p", p.prob); g.style.setProperty("--c", col);
+  $("#prob").textContent = p.prob.toFixed(0) + "%";
+  $("#label").textContent = p.label;
+  $("#verdict").className = "verdict band-" + p.band;
+
+  $("#sims").innerHTML = p.scenarios.length ? p.scenarios.map(s => {
+    const cls = s.delta > 0.05 ? "" : s.delta < -0.05 ? "neg" : "flat";
+    const sign = s.delta > 0 ? "+" : "";
+    return `<div class="sim"><span>${esc(s.text)}</span><span class="chip ${cls}">${sign}${s.delta.toFixed(1)} points</span>
+      <div class="track"><i style="width:${s.prob}%"></i></div></div>`;
+  }).join("") : `<p class="sub" style="margin:0">Every improvement listed here is already at its maximum.</p>`;
+
+  const f = out.performance;
+  $("#score").textContent = f.score.toFixed(1);
+  const on = Math.round(f.score);
+  $("#gbar").innerHTML = Array.from({length:20}, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("");
+  const err = f.mae != null ? ` Typical error is about +/- ${f.mae.toFixed(1)} marks.` : "";
+  $("#modeNote").textContent = f.mode === "mid"
+    ? "Mid-term model: uses habits plus period 1 and 2 grades." + err
+    : "Early-warning model: uses habits and background only, so it is a rough estimate." + err;
+}
+form.addEventListener("input", schedule);
+form.addEventListener("change", schedule);
+$("#useMid").addEventListener("change", e => { $("#midBox").hidden = !e.target.checked; });
+form.addEventListener("submit", e => e.preventDefault());
+
+/* ---------- training tab ---------- */
+const trainBtn = $("#trainBtn");
+async function poll() {
+  let s;
+  try { s = await (await fetch("/train_status")).json(); } catch (e) { setTimeout(poll, 1500); return; }
+  const log = $("#log");
+  log.textContent = s.log.join("\n") || "Starting...";
+  log.scrollTop = log.scrollHeight;
+  const steps = s.log.filter(l => l.includes("cross-validating")).length;
+  const pctDone = s.running ? Math.min(96, Math.round(steps / 18 * 92) + 3) : (s.returncode === 0 ? 100 : 0);
+  $("#progBar").style.width = pctDone + "%";
+  if (s.running) {
+    $("#trainStatus").textContent = `Training... ${s.elapsed}s elapsed`;
+    setTimeout(poll, 1000);
+  } else {
+    trainBtn.disabled = false;
+    if (s.returncode === 0) {
+      $("#trainStatus").textContent = `Finished in ${s.elapsed}s. The app now uses the new models. Open "Model performance" to see the charts.`;
+      loadMetrics(); runPredict();
+    } else {
+      $("#trainStatus").textContent = "Training stopped with an error. Read the last lines of the log, fix the problem, and train again.";
+    }
+  }
+}
+trainBtn.addEventListener("click", async () => {
+  trainBtn.disabled = true;
+  $("#log").textContent = "Starting...";
+  $("#progBar").style.width = "3%";
+  const r = await (await fetch("/train", {method:"POST"})).json();
+  if (!r.started) $("#trainStatus").textContent = r.reason;
+  poll();
+});
+
+/* ---------- start ---------- */
+wireSliders();
+runPredict();
+loadMetrics();
+</script>
+</body>
+</html>
